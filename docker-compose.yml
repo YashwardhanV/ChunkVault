@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-chunkvault}
+      POSTGRES_USER: ${POSTGRES_USER:-chunkvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chunkvault}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chunkvault} -d ${POSTGRES_DB:-chunkvault}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-chunkvault}
+      DB_USERNAME: ${POSTGRES_USER:-chunkvault}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-chunkvault}
+      STORAGE_ROOT: /data/chunks
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-2GB}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-2147483648}
+      GC_GRACE_PERIOD: ${GC_GRACE_PERIOD:-PT1H}
+      ALLOWED_ORIGIN: http://localhost:${FRONTEND_PORT:-3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - dedup-storage:/data/chunks
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  dedup-storage:
