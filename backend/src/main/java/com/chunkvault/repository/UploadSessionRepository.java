@@ -1,0 +1,9 @@
+package com.chunkvault.repository;
+
+import com.chunkvault.domain.UploadSession;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+public interface UploadSessionRepository extends JpaRepository<UploadSession, UUID> {
+}
